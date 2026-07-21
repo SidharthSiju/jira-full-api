@@ -1,0 +1,17 @@
+on:
+  workflow_dispatch:
+    inputs:
+      user:
+        description: 'Which user to run as'
+        required: true
+        type: choice
+        options:
+          - bharathi
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      API_KEY: ${{ secrets[format('API_KEY_{0}', inputs.user)] }}
+    steps:
+      - run: npx playwright test
