@@ -131,7 +131,7 @@ guaranteed to match.
 ## Setup
 
 In order to run the automation on GitHub instead of local - add your testbook and artifacts to `inputs/your-user`. 
-*Note: The files you upload to folder will be deleted after the workflow.* 
+*Note: The files you upload to this folder will be deleted after the workflow.* 
 
 ## Steps
 
