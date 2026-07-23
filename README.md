@@ -83,31 +83,6 @@ Shared creation logic (CSV reading, field resolution, payload building)
 lives in `utils/testIssueCreation.js` so the pipeline stage and the manual
 smoke test never drift out of sync.
 
-## Manual / one-off checks
-
-Run these individually with `npx playwright test --project=<name>`:
-
-| Project | Purpose |
-|---|---|
-| `smoke-test-create-issue` | Creates **one** Test issue as a sanity check before running the full batch. Deliberately not part of the pipeline chain. |
-| `discover-fields` | Lists every Jira field (system + custom) and its ID. Use to find the correct field name for `getFieldIdByName()` lookups. |
-| `discover-projects` | Lists every project your API token can see, and checks whether it actually has `CREATE_ISSUES` permission on `JIRA_PROJECT_KEY`. |
-| `discover-link-types` | Lists every configured Issue Link Type — the authoritative source for what's usable with `issuelinks`, more reliable than any single tool's UI dropdown. |
-| `discover-issue-type-fields` | Shows every field available on the `Test` issue type for this project, including allowed values (e.g. valid Priority names). |
-| `setup` | The original Zephyr Essential UI import wizard. Kept as a manual fallback; nothing in the pipeline depends on it anymore. |
-
-## Notes on Zephyr Essential vs Zephyr Squad
-
-This project originally drove the Zephyr Squad CSV import wizard
-(`Apps → Zephyr Squad → Create a Test → Import Issues`). After migrating
-to Zephyr Essential, the UI flow changed to `Tests → Importer`, with
-project/issue-type/file-upload combined into one Setup step and a new
-Data Mapping step added before the final import. `pages/HomePage.js`,
-`pages/BulkCreateSetupPage.js`, `pages/DataMappingPage.js`, and
-`pages/MappingFieldsPage.js` reflect that UI. `pages/CreateIssuePage.js`
-was removed — Zephyr Essential's Importer opens directly into Setup, with
-no separate landing page.
-
 ## Known field mappings (this Jira instance)
 
 - `EPIC Number` (`customfield_10041`) — plain text field, legacy from the
