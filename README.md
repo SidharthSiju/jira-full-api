@@ -124,3 +124,20 @@ These are specific to this Jira instance — re-run the diagnostic scripts
 above if this pipeline is ever pointed at a different project or instance,
 since field IDs, priority schemes, and available link types are not
 guaranteed to match.
+
+
+# Running the Github actions pipeline
+
+## Setup
+
+In order to run the automation on GitHub instead of local - add your testbook and artifacts to `inputs/your-user`. 
+*Note: The files you upload to folder will be deleted after the workflow.* 
+
+## Steps
+
+1. Click on the actions tab in the github repository or follow this link https://github.com/SidharthSiju/jira-full-api/actions
+2. Find `.github/workflows/main.yml` on the left navbar
+3. Click the run workflow dropdown and choose your user and CSV file name of the testbook you uploaded for the setup
+4. Click the run workflow button
+5. Go back to the code tab
+6. Find your report in `reports/your-user/your-testbook-results.csv`
