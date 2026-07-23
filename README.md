@@ -1,171 +1,126 @@
-# Jira Zephyr Squad — Bulk Import & Evidence Upload Automation
+# Jira Zephyr API — Test Case Import Pipeline
 
-Automates the end-to-end workflow of bulk-importing test cases from a CSV file into Jira (via the Zephyr Squad plugin), attaching `.docx` evidence files to each created issue, and setting each issue's status to **Pass**.
-
----
-
-## Prerequisites
-
-- [Node.js](https://nodejs.org/) v18 or later
-- A folder containing:
-  - A single `.csv` file with your test cases
-  - One `.docx` evidence file per test case, named exactly after the **Summary** column value (e.g. `My Test Case.docx`)
-
----
+Automates importing test cases from CSV into Jira as Zephyr `Test` issues,
+linking them to their parent Stories, attaching evidence, and exporting a
+results report. Originally built around the Zephyr Squad UI import wizard;
+migrated to Zephyr Essential, then largely replaced with direct Jira REST
+API calls for reliability and speed.
 
 ## Setup
 
-### 1. CD to project directory (folder containing the tests folder)
-```bash
-cd jira-zephyr-api
+1. Install dependencies:
+   ```
+   npm install
+   ```
+
+2. Create a `.env` file in the project root (never commit this — it holds a
+   live Jira API token):
+
+   ```
+   JIRA_BASE_URL=https://your-instance.atlassian.net
+   JIRA_EMAIL=you@example.com
+   JIRA_API_TOKEN=your-api-token
+   JIRA_PROJECT_KEY=YOURKEY
+
+   TEST_DATA_PATH=C:\path\to\folder\containing\the\csv
+   OUTPUT_PATH=C:\path\to\folder\for\results
+
+   FOLDER_NAME=Descriptive Name For This Batch
+   ```
+
+   **`JIRA_PROJECT_KEY` must be the project *key* (e.g. `OKQABUG`), not the
+   project *name* shown in Jira's UI** (e.g. `OKW_FMO_ADM_QA_21_25`) — these
+   are different things, and using the name here fails with `"target
+   project doesn't exist or you don't have permission"` even when the
+   project is real and you do have access.
+
+   If you're on Windows with OneDrive's Known Folder Move enabled, make
+   sure `TEST_DATA_PATH` / `OUTPUT_PATH` point at wherever your Desktop
+   *actually* resolves to (`...\OneDrive\Desktop\...` vs plain
+   `...\Desktop\...`) — these can silently diverge and cause "the file
+   isn't there" confusion even though the script wrote it successfully.
+
+3. Rotate `JIRA_API_TOKEN` immediately if this `.env` (or a zip containing
+   it) has ever been shared outside your machine — treat any token that's
+   left your local environment as compromised.
+
+## Expected CSV columns
+
+`Summary`, `Description`, `Precondition`, `Test Steps`, `Expected Result`,
+`Priority`, `Labels`, `Issue Type`, `Story Link`, `Epic Link`, `Issue Link`
+
+- `Priority` must exactly match a priority name valid for this project's
+  `Test` issue type (see "Diagnostic scripts" below to check — priority
+  schemes are per-instance and not standardized; this project uses
+  `P0`–`P3` with sub-levels like `P1-1`, not `Highest`/`Medium`/`Low`).
+- `Epic Link` and `Story Link` should hold full Jira issue keys (e.g.
+  `OKQABUG-8012`), not just the project prefix.
+- CSVs exported from Excel are often saved as Windows-1252, not UTF-8 —
+  the pipeline auto-detects and handles this, so special characters (en
+  dashes, smart quotes) in your CSV shouldn't need manual fixing.
+
+## Running the full pipeline
+
 ```
-
-### 2. Install dependencies
-
-```bash
-npm install
-```
-
-### 3. Configure environment variables
-
-Create a `.env` file in the project root (or edit the existing one):
-
-```env
-TEST_DATA_PATH=C:/path/to/your/test-data-folder
-OUTPUT_PATH=C:/path/to/your/results-folder
-FOLDER_NAME=your-folder-name
-JIRA_BASE_URL=https://your-domain.atlassian.net/
-JIRA_EMAIL=your-jira-email
-JIRA_API_TOKEN=your-jira-api-token
-JIRA_PROJECT_KEY=your-jira-project
-```
-
-| Variable         | Description                                                       |
-|------------------|-------------------------------------------------------------------|
-| `TEST_DATA_PATH` | Absolute path to the folder containing the CSV and `.docx` files  |
-| `OUTPUT_PATH`    | Absolute path where the output results CSV will be saved          |
-| `FOLDER_NAME`    | Name of the folder (used for labelling in output)                 |
-
-### 4. Save browser authentication state
-
-Run the following command, log in to Jira in the browser that opens, press stop record, then close it:
-
-```bash
-npx playwright codegen --save-storage=auth.json https://okducagile.atlassian.net/
-```
-
-This saves your login session to `auth.json` so tests can reuse it without logging in every time.
-
----
-
-## Running Tests
-
-### Full pipeline (import → collect issues → upload evidence)
-
-```bash
 npx playwright test --project=full-process
 ```
 
-### Import CSV only
-
-```bash
-npx playwright test --project=setup
-```
-
-### Collect created issue links (after import)
-
-```bash
-npx playwright test --project=scenarios-only
-```
-
-### Upload evidence only (if import is already done)
-
-```bash
-npx playwright test --project=evidence-only
-```
-
-### Download CSV
-
-```bash
-npx playwright test --project=download-csv
-```
-
-## How It Works
-
-The automation runs in three sequential stages:
+This runs the full dependency chain in order:
 
 ```
-[setup]         bulkCreateIssues.spec.js
-                  → Navigates to Jira, opens Zephyr Squad
-                  → Uploads the CSV via the bulk import wizard
-                  → Configures project settings and field mappings
-                  → Verifies all rows were imported successfully
-                  → Saves the resulting issues-list URL to link.json
-
-[scenarios]     attachFilesParallel.spec.js
-                  → Reads link.json to navigate to the issues list
-                  → Scrapes all created issue names and links
-                  → Matches them against the original CSV rows
-                  → Saves the matched map to issues.json
-
-[evidence]      uploadEvidence.spec.js
-                  → Reads issues.json (one test per issue, runs in parallel)
-                  → Navigates to each issue page
-                  → Attaches the matching .docx file
-                  → Sets the issue status to Pass
-                  → Writes a timestamped results CSV to OUTPUT_PATH
-[download-csv]   downloadCSV.spec.js
-                  → Downloads the test results CSV of the currently added records
-                  → Saves it into the output folder
+create-tests-api → link-story-issues → scenarios → evidence → full-process
 ```
 
----
+| Stage | Script | What it does |
+|---|---|---|
+| `create-tests-api` | `tests/createTestsViaApi.spec.js` | Creates each Test issue directly via the Jira REST API. Writes `issues.json`. Fails loudly if any row fails, so a bad batch doesn't silently continue. |
+| `link-story-issues` | `tests/linkStoryIssues.spec.js` | Links every created Test to its Story using the `TestCase` Issue Link Type. |
+| `scenarios` | `tests/attachFilesParallel.spec.js` | Attaches evidence files to each created issue. |
+| `evidence` | `tests/uploadEvidence.spec.js` | Uploads evidence per scenario. |
+| `full-process` | `tests/downloadCSV.spec.js` | Exports a results CSV, with each issue Key as a clickable Excel `HYPERLINK()` formula back to Jira. |
 
-## Project Structure
+Shared creation logic (CSV reading, field resolution, payload building)
+lives in `utils/testIssueCreation.js` so the pipeline stage and the manual
+smoke test never drift out of sync.
 
-```
-jira_zephyr_3/
-├── tests/
-│   ├── bulkCreateIssues.spec.js       # Stage 1: CSV import wizard
-│   ├── attachFilesParallel.spec.js    # Stage 2: Collect created issue links
-│   ├── uploadEvidence.spec.js         # Stage 3: Attach evidence & set Pass
-│   └── downloadCSV.spec.js            # Stage 4: Download test results CSV 
-│
-├── pages/
-│   ├── HomePage.js                    # Jira top nav → Apps → Zephyr Squad
-│   ├── CreateIssuePage.js             # Clicks the "Import Issues" button
-│   ├── BulkCreateSetupPage.js         # Uploads the CSV in the import wizard
-│   ├── SettingPage.js                 # Selects the target Jira project
-│   └── MappingFieldsPage.js           # Maps CSV columns to Jira fields
-│
-├── utils/
-│   └── retryHelper.js                 # Retry wrapper for flaky UI interactions
-│
-├── playwright.config.js               # Project definitions and shared settings
-├── .env                               # Environment variables (not committed)
-├── auth.json                          # Saved browser auth state (not committed)
-├── link.json                          # Runtime: URL of the created issues list
-└── issues.json                        # Runtime: matched issue names + links
-```
+## Manual / one-off checks
 
----
+Run these individually with `npx playwright test --project=<name>`:
 
-## Output
+| Project | Purpose |
+|---|---|
+| `smoke-test-create-issue` | Creates **one** Test issue as a sanity check before running the full batch. Deliberately not part of the pipeline chain. |
+| `discover-fields` | Lists every Jira field (system + custom) and its ID. Use to find the correct field name for `getFieldIdByName()` lookups. |
+| `discover-projects` | Lists every project your API token can see, and checks whether it actually has `CREATE_ISSUES` permission on `JIRA_PROJECT_KEY`. |
+| `discover-link-types` | Lists every configured Issue Link Type — the authoritative source for what's usable with `issuelinks`, more reliable than any single tool's UI dropdown. |
+| `discover-issue-type-fields` | Shows every field available on the `Test` issue type for this project, including allowed values (e.g. valid Priority names). |
+| `setup` | The original Zephyr Essential UI import wizard. Kept as a manual fallback; nothing in the pipeline depends on it anymore. |
 
-After a successful run, a timestamped CSV is written to `OUTPUT_PATH`:
+## Notes on Zephyr Essential vs Zephyr Squad
 
-```
-your_csv_file_results.csv
-```
+This project originally drove the Zephyr Squad CSV import wizard
+(`Apps → Zephyr Squad → Create a Test → Import Issues`). After migrating
+to Zephyr Essential, the UI flow changed to `Tests → Importer`, with
+project/issue-type/file-upload combined into one Setup step and a new
+Data Mapping step added before the final import. `pages/HomePage.js`,
+`pages/BulkCreateSetupPage.js`, `pages/DataMappingPage.js`, and
+`pages/MappingFieldsPage.js` reflect that UI. `pages/CreateIssuePage.js`
+was removed — Zephyr Essential's Importer opens directly into Setup, with
+no separate landing page.
 
-Each row contains the original CSV data plus:
-- `testLink` — the Jira issue URL
-- `testStatus` — `Pass`, `Not Created`, or `Fail`
+## Known field mappings (this Jira instance)
 
----
+- `EPIC Number` (`customfield_10041`) — plain text field, legacy from the
+  old CSV import mapping.
+- `Epic Link` (`customfield_10014`) — Jira's **native** Epic Link field,
+  which is actually required by this issue type's create screen. Both
+  fields get set from the same CSV `Epic Link` column.
+- Story linking uses the `TestCase` Issue Link Type (`inward: "testcase
+  for"`, `outward: "testcases"`) — confirmed via `discover-link-types`,
+  no admin setup needed. The Test issue is the `inwardIssue`, the Story is
+  the `outwardIssue`.
 
-## Notes
-
-- `link.json` and `issues.json` are intermediate runtime files written to the project root. They are read by the next stage in the pipeline.
-- Evidence files **must** be named exactly as the `Summary` field in the CSV, with a `.docx` extension.
-- The `auth.json` file contains sensitive session tokens — do not commit it to version control. It is already listed in `.gitignore`.
+These are specific to this Jira instance — re-run the diagnostic scripts
+above if this pipeline is ever pointed at a different project or instance,
+since field IDs, priority schemes, and available link types are not
+guaranteed to match.
