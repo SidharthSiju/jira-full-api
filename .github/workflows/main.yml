@@ -6,12 +6,31 @@ on:
         required: true
         type: choice
         options:
-          - bharathi
+          - BHARATHI
+      csv-file:
+        description: 'Exact CSV file name to be used'
+        required: true
+        type: string
 
 jobs:
-  test:
+  jira-automation:
     runs-on: ubuntu-latest
-    env:
-      API_KEY: ${{ secrets[format('API_KEY_{0}', inputs.user)] }}
     steps:
-      - run: npx playwright test
+      - uses: actions/checkout@v4
+
+      - name: Run Jira API automation
+        env:
+          TEST_DATA_PATH: ${{ vars[format('TEST_DATA_PATH_{0}', inputs.user)] }}
+          OUTPUT_PATH: ${{ vars[format('OUTPUT_PATH_{0}', inputs.user)] }}
+          FOLDER_NAME: ${{ inputs.csv-file }}
+          JIRA_API_TOKEN: ${{ secrets[format('JIRA_API_TOKEN_{0}', inputs.user)] }}
+          JIRA_EMAIL: ${{ secrets[format('JIRA_EMAIL_{0}', inputs.user)] }}
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_PROJECT_KEY: ${{ secrets.JIRA_PROJECT_KEY }}
+        run: npx playwright test --project=full-process
+
+      - name: Upload results CSV
+        uses: actions/upload-artifact@v4
+        with:
+          name: jira-automation-results
+          path: results.csv
