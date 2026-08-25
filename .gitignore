@@ -5,4 +5,3 @@ auth.json
 *.log
 issues.json
 link.json
-.env
