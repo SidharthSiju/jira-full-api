@@ -46,18 +46,6 @@ JIRA_PROJECT_KEY=your-jira-project
 | `OUTPUT_PATH`    | Absolute path where the output results CSV will be saved          |
 | `FOLDER_NAME`    | Name of the folder (used for labelling in output)                 |
 
-### 4. Save browser authentication state
-
-Run the following command, log in to Jira in the browser that opens, press stop record, then close it:
-
-```bash
-npx playwright codegen --save-storage=auth.json https://okducagile.atlassian.net/
-```
-
-This saves your login session to `auth.json` so tests can reuse it without logging in every time.
-
----
-
 ## Running Tests
 
 ### Full pipeline (import → collect issues → upload evidence)
