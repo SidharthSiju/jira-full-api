@@ -44,7 +44,7 @@ JIRA_PROJECT_KEY=your-jira-project
 |------------------|-------------------------------------------------------------------|
 | `TEST_DATA_PATH` | Absolute path to the folder containing the CSV and `.docx` files  |
 | `OUTPUT_PATH`    | Absolute path where the output results CSV will be saved          |
-| `FOLDER_NAME`    | Name of the folder (used for labelling in output)                 |
+| `FOLDER_NAME`    | Test Book file name                                               |
 
 ## Running Tests
 
