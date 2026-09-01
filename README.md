@@ -17,7 +17,7 @@ Automates the end-to-end workflow of bulk-importing test cases from a CSV file i
 
 ### 1. CD to project directory (folder containing the tests folder)
 ```bash
-cd jira-zephyr-api
+cd jira-full-api
 ```
 
 ### 2. Install dependencies
