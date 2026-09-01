@@ -1,0 +1,8 @@
+node_modules/
+test-results/
+playwright-report/
+auth.json
+*.log
+issues.json
+link.json
+.env
