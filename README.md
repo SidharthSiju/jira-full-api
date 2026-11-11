@@ -1,6 +1,6 @@
-# Jira Zephyr Squad — Bulk Import & Evidence Upload Automation
+# Jira API — Bulk Import & Evidence Upload Automation
 
-Automates the end-to-end workflow of bulk-importing test cases from a CSV file into Jira (via the Zephyr Squad plugin), attaching `.docx` evidence files to each created issue, and setting each issue's status to **Pass**.
+Automates the end-to-end workflow of bulk-importing test cases from a CSV file into Jira via JIRA API, attaching `.docx` evidence files to each created issue, and setting each issue's status to **Pass**.
 
 ---
 
@@ -54,12 +54,6 @@ JIRA_PROJECT_KEY=your-jira-project
 npx playwright test --project=full-process
 ```
 
-### Import CSV only
-
-```bash
-npx playwright test --project=setup
-```
-
 ### Collect created issue links (after import)
 
 ```bash
@@ -83,18 +77,12 @@ npx playwright test --project=download-csv
 The automation runs in three sequential stages:
 
 ```
-[setup]         bulkCreateIssues.spec.js
-                  → Navigates to Jira, opens Zephyr Squad
-                  → Uploads the CSV via the bulk import wizard
-                  → Configures project settings and field mappings
-                  → Verifies all rows were imported successfully
-                  → Saves the resulting issues-list URL to link.json
+[create-tests-api]   createTestsViaApi.spec.js
+                  → Calls JIRA API to create the test cases
+                  → Uses parameters from the CSV file in the Test Data Path
 
-[scenarios]     attachFilesParallel.spec.js
-                  → Reads link.json to navigate to the issues list
-                  → Scrapes all created issue names and links
-                  → Matches them against the original CSV rows
-                  → Saves the matched map to issues.json
+[link-story-issues]  linkStoryIssues.spec.js
+                  → Retrieves Story link from the CSV and links test cases to that story
 
 [evidence]      uploadEvidence.spec.js
                   → Reads issues.json (one test per issue, runs in parallel)
@@ -114,20 +102,16 @@ The automation runs in three sequential stages:
 ```
 jira_full_api/
 ├── tests/
-│   ├── bulkCreateIssues.spec.js       # Stage 1: CSV import wizard
-│   ├── attachFilesParallel.spec.js    # Stage 2: Collect created issue links
-│   ├── uploadEvidence.spec.js         # Stage 3: Attach evidence & set Pass
-│   └── downloadCSV.spec.js            # Stage 4: Download test results CSV 
-│
-├── pages/
-│   ├── HomePage.js                    # Jira top nav → Apps → Zephyr Squad
-│   ├── CreateIssuePage.js             # Clicks the "Import Issues" button
-│   ├── BulkCreateSetupPage.js         # Uploads the CSV in the import wizard
-│   ├── SettingPage.js                 # Selects the target Jira project
-│   └── MappingFieldsPage.js           # Maps CSV columns to Jira fields
+│   ├── CreateTestsViaApi.spec.js      # Stage 1: Create tests on the epic
+│   ├── linkStoryIssues.spec.js        # Stage 2: Link story for each case
+│   ├── attachFilesParallel.spec.js    # Stage 3: Collect created issue links
+│   ├── uploadEvidence.spec.js         # Stage 4: Attach evidence & set Pass
+│   └── downloadCSV.spec.js            # Stage 5: Download test results CSV 
 │
 ├── utils/
 │   └── retryHelper.js                 # Retry wrapper for flaky UI interactions
+│   └── jiraFields.js
+│   └── testIssueCreation.js           # Helper file to create test issues
 │
 ├── playwright.config.js               # Project definitions and shared settings
 ├── .env                               # Environment variables (not committed)

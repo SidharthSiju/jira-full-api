@@ -175,7 +175,7 @@ test.describe('Upload evidence via Jira API', () => {
 
     csvRows.forEach((row) => {
 
-        test(`Upload evidence for ${row.Summary}`, async () => {
+        test(`Upload evidence for ${csvRows.indexOf(row)}`, async () => {
 
             test.setTimeout(600000);
 

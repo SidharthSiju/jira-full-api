@@ -30,6 +30,7 @@ export const authHeader = {
 // The script will resolve the actual field ID automatically.
 export const EPIC_FIELD_NAME = 'EPIC Number';
 export const NATIVE_EPIC_LINK_FIELD_NAME = 'Epic Link';
+export const EXPECTED_RESULT_FIELD_NAME = 'Expected Result';
 
 // Story links wont be applied for this step. It is a separate api call in linkStoryIssues.spec.js. 
 // The script will resolve the actual field ID automatically if STORY_LINK_MODE is set to 'field'.
@@ -95,11 +96,12 @@ export function readCsvRows(folderPath) {
 export async function resolveFieldIds() {
     const epicFieldId = await getFieldIdByName(jiraBaseUrl, authHeader, EPIC_FIELD_NAME);
     const nativeEpicLinkFieldId = await getFieldIdByName(jiraBaseUrl, authHeader, NATIVE_EPIC_LINK_FIELD_NAME);
+    const expectedResultFieldId = await getFieldIdByName(jiraBaseUrl, authHeader, EXPECTED_RESULT_FIELD_NAME);
     const storyFieldId = STORY_LINK_MODE === 'field' && STORY_LINK_FIELD_NAME
         ? await getFieldIdByName(jiraBaseUrl, authHeader, STORY_LINK_FIELD_NAME)
         : null;
 
-    return { epicFieldId, nativeEpicLinkFieldId, storyFieldId, storyMode: STORY_LINK_MODE };
+    return { epicFieldId, nativeEpicLinkFieldId, expectedResultFieldId, storyFieldId, storyMode: STORY_LINK_MODE };
 }
 
 /**
@@ -114,6 +116,10 @@ export function buildIssuePayload(row, fieldIds) {
 
     if (row.Description) {
         fields.description = toADF(row.Description);
+    }
+
+    if (row['Expected Result'] && fieldIds.expectedResultFieldId) {
+        fields[fieldIds.expectedResultFieldId] = toADF(row['Expected Result']);
     }
 
     if (row.Priority) {
