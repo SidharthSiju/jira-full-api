@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import axios from 'axios';
-import { stringify } from 'csv-stringify/sync';
+import * as XLSX from 'xlsx';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ENV
@@ -156,10 +156,10 @@ async function searchIssues() {
 // TEST
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Download CSV via API', () => {
+test.describe('Download XLSX via API', () => {
 
 
-    test('Generate CSV results', async () => {
+    test('Generate XLSX results', async () => {
 
         test.setTimeout(600000);
         const issues = await searchIssues();
@@ -200,9 +200,9 @@ test.describe('Download CSV via API', () => {
                 '',
         }));
 
-        const csv = stringify(rows, {
-            header: true,
-        });
+        const worksheet = XLSX.utils.json_to_sheet(rows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Issues');
 
         fs.mkdirSync(
             outputPath,
@@ -213,17 +213,13 @@ test.describe('Download CSV via API', () => {
 
         const outputFile = path.join(
             outputPath,
-            `${resultsFile}_results.csv`
+            `${resultsFile}_results.xlsx`
         );
 
-        fs.writeFileSync(
-            outputFile,
-            csv,
-            'utf8'
-        );
+        XLSX.writeFile(workbook, outputFile);
 
         console.log(
-            `CSV saved to ${outputFile}`
+            `XLSX saved to ${outputFile}`
         );
 
         console.log(
